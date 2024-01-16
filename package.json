@@ -142,7 +142,7 @@
 		"@wordpress/dom-ready": "^3.45.0",
 		"@wordpress/element": "^5.22.0",
 		"acorn": "^8.7.1",
-		"core-js": "^3.24.1",
+		"core-js": "^3.34.0",
 		"grunt-cli": "^1.4.3",
 		"html-to-image": "^1.11.11",
 		"mime": "^3.0.0",
