@@ -13,17 +13,17 @@ import { useConfig } from '../context/config';
 import { AttachmentPropType } from '../../../types/attachment';
 
 const PROMPT_SUGGESTIONS = Object.freeze( [
-	{ text: __( 'A services section with a list layout, icons, and corresponding service descriptions for', 'elementor' ) },
-	{ text: __( 'An accordion-style FAQ block, with clickable questions revealing detailed answers about', 'elementor' ) },
-	{ text: __( 'A hero section combining an image, heading, subheading, and call-to-action button about', 'elementor' ) },
-	{ text: __( 'A full-width call-to-action with a background image, overlaid text, and a standout button about', 'elementor' ) },
-	{ text: __( 'A carousel testimonial block displaying user images, names, and their feedback on', 'elementor' ) },
-	{ text: __( 'A features block, showcasing the feature title, and brief description about', 'elementor' ) },
-	{ text: __( 'Multi column minimalistic About us section with icons showcasing', 'elementor' ) },
-	{ text: __( 'A section with contact form and social media icons representing alternative contact methods for', 'elementor' ) },
-	{ text: __( 'Statistics display in a 3-column layout, with numbers and icons about', 'elementor' ) },
-	{ text: __( 'Pricing table section with highlighted option for', 'elementor' ) },
-	{ text: __( 'About us section, combining company history and values about', 'elementor' ) },
+	{ text: __( 'Services section with list layout, icons, and service descriptions for [topic]', 'elementor' ) },
+	{ text: __( 'Accordion-style FAQ block with clickable questions about [topic]', 'elementor' ) },
+	{ text: __( 'Hero section with image, heading, subheading, and CTA button about [topic]', 'elementor' ) },
+	{ text: __( 'Full-width call-to-action with background image and overlay text about [topic]', 'elementor' ) },
+	{ text: __( 'Carousel testimonial block with user images, names, and feedback about [topic]', 'elementor' ) },
+	{ text: __( 'Features block showcasing feature title and brief description about [topic]', 'elementor' ) },
+	{ text: __( 'Multi-column minimalistic About Us section with icons for [topic]', 'elementor' ) },
+	{ text: __( 'Section with contact form and social media icons for [topic]', 'elementor' ) },
+	{ text: __( 'Statistics display in a 3-column layout with numbers and icons for [topic]', 'elementor' ) },
+	{ text: __( 'Pricing table section with highlighted option for [topic]', 'elementor' ) },
+	{ text: __( 'About Us section combining company history and values for [topic]', 'elementor' ) },
 ] );
 
 const IconButtonWithTooltip = ( { tooltip, ...props } ) => (
@@ -82,11 +82,14 @@ const PromptForm = forwardRef( ( {
 	const previousPrompt = useRef( '' );
 	const { attachmentsTypes } = useConfig();
 
-	const isInteractionsDisabled = isEnhancing || isLoading || ! isActive || ( '' === prompt && ! attachments.length );
+	const isInputDisabled = isLoading || isEnhancing || ! isActive;
+	const isInputEmpty = '' === prompt && ! attachments.length;
+	const isGenerateDisabled = isInputDisabled || isInputEmpty;
 
 	const attachmentsType = attachments[ 0 ]?.type || '';
 	const attachmentsConfig = attachmentsTypes[ attachmentsType ];
 	const promptSuggestions = attachmentsConfig?.promptSuggestions || PROMPT_SUGGESTIONS;
+	const promptPlaceholder = attachmentsConfig?.promptPlaceholder || __( "Press '/' for suggested prompts or describe the layout you want to create", 'elementor' );
 
 	const handleBack = () => {
 		setPrompt( previousPrompt.current );
@@ -103,11 +106,11 @@ const PromptForm = forwardRef( ( {
 			component="form"
 			onSubmit={ ( e ) => onSubmit( e, prompt ) }
 			direction="row"
-			sx={ { p: 2 } }
-			alignItems="center"
+			sx={ { p: 3 } }
+			alignItems="start"
 			gap={ 1 }
 		>
-			<Stack direction="row" alignItems="center" flexGrow={ 1 } spacing={ 1 }>
+			<Stack direction="row" alignItems="start" flexGrow={ 1 } spacing={ 2 }>
 				{
 					showActions && (
 						isActive ? (
@@ -122,22 +125,21 @@ const PromptForm = forwardRef( ( {
 					attachments={ attachments }
 					onAttach={ onAttach }
 					onDetach={ onDetach }
-					disabled={ isLoading }
+					disabled={ isInputDisabled }
 				/>
 
 				<PromptAutocomplete
 					value={ prompt }
-					disabled={ isLoading || ! isActive || isEnhancing }
+					disabled={ isInputDisabled }
 					onSubmit={ ( e ) => onSubmit( e, prompt ) }
 					options={ promptSuggestions }
-					getOptionLabel={ ( option ) => option.text ? option.text + '...' : prompt }
 					onChange={ ( _, selectedValue ) => setPrompt( selectedValue.text + ' ' ) }
 					renderInput={ ( params ) => (
 						<PromptAutocomplete.TextInput
 							{ ...params }
 							ref={ ref }
 							onChange={ ( e ) => setPrompt( e.target.value ) }
-							placeholder={ __( "Press '/' for suggested prompts or describe the layout you want to create", 'elementor' ) }
+							placeholder={ promptPlaceholder }
 						/>
 					) }
 				/>
@@ -145,12 +147,12 @@ const PromptForm = forwardRef( ( {
 
 			<EnhanceButton
 				size="small"
-				disabled={ isInteractionsDisabled }
+				disabled={ isGenerateDisabled || '' === prompt }
 				isLoading={ isEnhancing }
 				onClick={ () => enhance().then( ( { result } ) => setPrompt( result ) ) }
 			/>
 
-			<GenerateButton disabled={ isInteractionsDisabled } />
+			<GenerateButton disabled={ isGenerateDisabled } />
 		</Stack>
 	);
 } );

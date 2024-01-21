@@ -1,4 +1,5 @@
 import { resolve } from 'path';
+import { defineConfig } from '@playwright/test';
 
 process.env.DEBUG_PORT = '9222';
 
@@ -15,6 +16,10 @@ function getGrepInvert() {
 			/@onBoarding/,
 			/@video/,
 			/@rating/,
+			/@pluginTester1_containers/,
+			/@pluginTester2_containers/,
+			/@pluginTester1_sections/,
+			/@pluginTester2_sections/,
 		];
 	}
 	return [];
@@ -29,8 +34,7 @@ function getGrep() {
 	return [ /.*/ ];
 }
 
-/** @type {import('@playwright/test').PlaywrightTestConfig} */
-export default {
+export default defineConfig( {
 	testDir: './sanity',
 	timeout: 90_000,
 	globalTimeout: 60 * 15_000,
@@ -40,6 +44,7 @@ export default {
 	expect: {
 		timeout: 5_000,
 		toMatchSnapshot: { maxDiffPixelRatio: 0.03 },
+		toHaveScreenshot: { maxDiffPixelRatio: 0.03 },
 	},
 	forbidOnly: !! process.env.CI,
 	retries: process.env.CI ? 1 : 0,
@@ -65,4 +70,4 @@ export default {
 		},
 		baseURLPrefixProxy: process.env.BASE_URL_PROXY_PREFIX || false,
 	},
-};
+} );

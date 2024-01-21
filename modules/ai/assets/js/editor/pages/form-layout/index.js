@@ -9,11 +9,16 @@ import PromptForm from './components/prompt-form';
 import RefreshIcon from '../../icons/refresh-icon';
 import Screenshot from './components/screenshot';
 import useScreenshots from './hooks/use-screenshots';
-import useSlider from './hooks/use-slider';
+import useSlider, { MAX_PAGES, SCREENSHOTS_PER_PAGE } from './hooks/use-slider';
 import MinimizeDiagonalIcon from '../../icons/minimize-diagonal-icon';
 import ExpandDiagonalIcon from '../../icons/expand-diagonal-icon';
 import { useConfig } from './context/config';
 import { AttachmentPropType } from '../../types/attachment';
+import { PromptPowerNotice } from './components/attachments/prompt-power-notice';
+import { ProWidgetsNotice } from './components/pro-widgets-notice';
+import { ATTACHMENT_TYPE_URL } from './components/attachments';
+import AttachDialog from './components/attachments/attach-dialog';
+import isURL from 'validator/lib/isURL';
 
 const DirectionalMinimizeDiagonalIcon = withDirection( MinimizeDiagonalIcon );
 const DirectionalExpandDiagonalIcon = withDirection( ExpandDiagonalIcon );
@@ -50,12 +55,20 @@ const UseLayoutButton = ( props ) => (
 UseLayoutButton.propTypes = {
 	sx: PropTypes.object,
 };
+
+const isRegenerateButtonDisabled = ( screenshots, isLoading, isPromptFormActive ) => {
+	if ( isLoading || isPromptFormActive ) {
+		return true;
+	}
+	return screenshots.length >= SCREENSHOTS_PER_PAGE * MAX_PAGES;
+};
+
 const FormLayout = ( {
 	DialogHeaderProps = {},
 	DialogContentProps = {},
 	attachments: initialAttachments,
 } ) => {
-	const { attachmentsTypes, onData, onInsert, onSelect, onClose, onGenerate } = useConfig();
+	const { attachmentsTypes, onData, onInsert, onSelect, onClose, onGenerate, hasPro } = useConfig();
 
 	const { screenshots, generate, regenerate, isLoading, error, abort } = useScreenshots( { onData } );
 
@@ -79,6 +92,8 @@ const FormLayout = ( {
 
 	const [ attachments, setAttachments ] = useState( [] );
 
+	const [ shouldRenderWebApp, setShouldRenderWebApp ] = useState( false );
+
 	const [ isMinimized, setIsMinimized ] = useState( false );
 
 	const lastRun = useRef( () => {} );
@@ -93,6 +108,8 @@ const FormLayout = ( {
 	const shouldFallbackToEditPrompt = !! ( error && 0 === screenshots.length );
 
 	const isPromptFormActive = isPromptEditable || shouldFallbackToEditPrompt;
+
+	const mayContainProWidgets = 0 === attachments.length || attachments.some( ( attachment ) => ATTACHMENT_TYPE_URL === attachment.type );
 
 	const abortAndClose = () => {
 		abort();
@@ -116,6 +133,10 @@ const FormLayout = ( {
 			return;
 		}
 
+		if ( isURL( prompt ) ) {
+			setShouldRenderWebApp( true );
+			return;
+		}
 		onGenerate();
 
 		lastRun.current = () => {
@@ -188,6 +209,7 @@ const FormLayout = ( {
 		} );
 
 		setAttachments( items );
+		setShouldRenderWebApp( false );
 		setIsPromptEditable( true );
 	};
 
@@ -230,6 +252,10 @@ const FormLayout = ( {
 						</Box>
 					) }
 
+					{ mayContainProWidgets && ! hasPro && <ProWidgetsNotice /> }
+
+					{ attachments.length > 0 && <PromptPowerNotice /> }
+
 					{ error && (
 						<Box sx={ { pt: 2, px: 2, pb: 0 } }>
 							<PromptErrorMessage error={ error } onRetry={ lastRun.current } />
@@ -245,7 +271,15 @@ const FormLayout = ( {
 							onCancel={ () => setShowUnsavedChangesAlert( false ) }
 						/>
 					) }
-
+					{ shouldRenderWebApp && (
+						<AttachDialog
+							type={ ATTACHMENT_TYPE_URL }
+							url={ promptInputRef.current.value }
+							onAttach={ onAttach }
+							onClose={ () => {
+								setShouldRenderWebApp( false );
+							} } />
+					) }
 					<PromptForm
 						ref={ promptInputRef }
 						isActive={ isPromptFormActive }
@@ -254,8 +288,14 @@ const FormLayout = ( {
 						attachmentsTypes={ attachmentsTypes }
 						attachments={ attachments }
 						onAttach={ onAttach }
-						onDetach={ () => {
-							setAttachments( [] );
+						onDetach={ ( index ) => {
+							setAttachments( ( prev ) => {
+								const newAttachments = [ ...prev ];
+
+								newAttachments.splice( index, 1 );
+
+								return newAttachments;
+							} );
 							setIsPromptEditable( true );
 						} }
 						onSubmit={ handleGenerate }
@@ -279,10 +319,11 @@ const FormLayout = ( {
 											} }
 										>
 											{
-												screenshots.map( ( { screenshot, template, isError, isPending }, index ) => (
+												screenshots.map( ( { screenshot, type, template, isError, isPending }, index ) => (
 													<Screenshot
 														key={ index }
 														url={ screenshot }
+														type={ type }
 														disabled={ isPromptFormActive }
 														isPlaceholder={ isError }
 														isLoading={ isPending }
@@ -302,7 +343,7 @@ const FormLayout = ( {
 										<Box sx={ { pt: 0, px: 2, pb: 2 } } display="grid" gridTemplateColumns="repeat(3, 1fr)" justifyItems="center">
 											<RegenerateButton
 												onClick={ handleRegenerate }
-												disabled={ isLoading || isPromptFormActive }
+												disabled={ isRegenerateButtonDisabled( screenshots, isLoading, isPromptFormActive ) }
 												sx={ { justifySelf: 'start' } }
 											/>
 

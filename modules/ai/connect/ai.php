@@ -3,6 +3,7 @@ namespace Elementor\Modules\Ai\Connect;
 
 use Elementor\Core\Common\Modules\Connect\Apps\Library;
 use Elementor\Modules\Ai\Module;
+use Elementor\Utils as ElementorUtils;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
@@ -49,6 +50,17 @@ class Ai extends Library {
 		}
 
 		return $usage;
+	}
+
+	public function get_remote_config() {
+		return $this->ai_request(
+			'GET',
+			'remote-config/config',
+			[
+				'api_version' => ELEMENTOR_VERSION,
+				'site_lang' => get_bloginfo( 'language' ),
+			]
+		);
 	}
 
 	/**
@@ -500,6 +512,7 @@ class Ai extends Library {
 		$body = [
 			'prompt' => $data['prompt'],
 			'variationType' => (int) $data['variationType'],
+			'ids' => $data['ids'],
 		];
 
 		if ( ! empty( $data['prevGeneratedIds'] ) ) {
@@ -516,6 +529,8 @@ class Ai extends Library {
 					$body['json'] = [
 						'type' => 'elementor',
 						'elements' => [ $attachment['content'] ],
+						'label' => $attachment['label'],
+						'source' => $attachment['source'],
 					];
 					break;
 				case 'url':
@@ -527,6 +542,14 @@ class Ai extends Library {
 
 					break;
 			}
+		}
+
+		$context['currentContext'] = $data['currentContext'];
+
+		if ( ElementorUtils::has_pro() ) {
+			$context['features'] = [
+				'subscriptions' => [ 'Pro' ],
+			];
 		}
 
 		$metadata = [

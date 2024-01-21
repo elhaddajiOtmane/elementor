@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Popover, Stack, useTheme } from '@elementor/ui';
+import { IconButton, Popover, Stack, useTheme } from '@elementor/ui';
 import { MenuItem } from './menu-item';
 import XCircleIcon from '../../../../icons/x-circle-icon';
 import PlusCircleIcon from '../../../../icons/plus-circle-icon';
@@ -14,19 +14,15 @@ export const Menu = ( props ) => {
 
 	return (
 		<>
-			<Button
+			<IconButton
+				size="small"
 				ref={ anchorRef }
 				disabled={ props.disabled }
 				onClick={ () => setIsOpen( true ) }
 				color="secondary"
-				variant="text"
-				sx={ {
-					width: 24,
-					minWidth: 24,
-				} }
 			>
-				{ isOpen ? <XCircleIcon /> : <PlusCircleIcon /> }
-			</Button>
+				{ isOpen ? <XCircleIcon fontSize="small" /> : <PlusCircleIcon fontSize="small" /> }
+			</IconButton>
 
 			<Popover
 				open={ isOpen }
@@ -36,8 +32,12 @@ export const Menu = ( props ) => {
 					vertical: 'bottom',
 					horizontal: 'rtl' === direction ? 'right' : 'left',
 				} }
+				transformOrigin={ {
+					vertical: 'top',
+					horizontal: 'rtl' === direction ? 'right' : 'left',
+				} }
 			>
-				<Stack spacing={ 2 } sx={ {
+				<Stack sx={ {
 					width: 440,
 				} }>
 					{ props.items.map( ( item ) => (
@@ -45,7 +45,10 @@ export const Menu = ( props ) => {
 							key={ item.type }
 							title={ item.title }
 							icon={ item.icon }
-							onClick={ () => setSelectedType( item.type ) }
+							onClick={ () => {
+								setSelectedType( item.type );
+								setIsOpen( false );
+							} }
 						/> ) ) }
 				</Stack>
 			</Popover>

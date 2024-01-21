@@ -5,10 +5,12 @@ export const AttachmentPropType = PropTypes.shape( {
 	previewHTML: PropTypes.string,
 	content: PropTypes.string,
 	label: PropTypes.string,
+	source: PropTypes.string,
 } );
 
 export const AttachmentsTypesPropType = PropTypes.shape( {
 	type: PropTypes.shape( {
+		promptPlaceholder: PropTypes.string,
 		promptSuggestions: PropTypes.arrayOf( PropTypes.shape( {
 			text: PropTypes.string.isRequired,
 		} ) ),

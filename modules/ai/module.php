@@ -8,6 +8,7 @@ use Elementor\Core\Utils\Collection;
 use Elementor\Modules\Ai\Connect\Ai;
 use Elementor\Plugin;
 use Elementor\User;
+use Elementor\Utils;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
@@ -45,6 +46,7 @@ class Module extends BaseModule {
 		add_action( 'elementor/ajax/register_actions', function( $ajax ) {
 			$handlers = [
 				'ai_get_user_information' => [ $this, 'ajax_ai_get_user_information' ],
+				'ai_get_remote_config' => [ $this, 'ajax_ai_get_remote_config' ],
 				'ai_get_completion_text' => [ $this, 'ajax_ai_get_completion_text' ],
 				'ai_get_edit_text' => [ $this, 'ajax_ai_get_edit_text' ],
 				'ai_get_custom_code' => [ $this, 'ajax_ai_get_custom_code' ],
@@ -114,8 +116,8 @@ class Module extends BaseModule {
 			'name' => static::LAYOUT_EXPERIMENT,
 			'title' => esc_html__( 'Build with AI', 'elementor' ),
 			'description' => esc_html__( 'Tap into the potential of AI to easily create and customize containers to your specifications, right within Elementor. This feature comes packed with handy AI tools, including generation, variations, and URL references.', 'elementor' ),
-			'default' => Experiments_Manager::STATE_INACTIVE,
-			'status' => Experiments_Manager::RELEASE_STATUS_ALPHA,
+			'default' => Experiments_Manager::STATE_ACTIVE,
+			'release_status' => Experiments_Manager::RELEASE_STATUS_BETA,
 			'dependencies' => [
 				'container',
 			],
@@ -142,18 +144,46 @@ class Module extends BaseModule {
 			true
 		);
 
+		$config = [
+			'is_get_started' => User::get_introduction_meta( 'ai_get_started' ),
+			'connect_url' => $this->get_ai_connect_url(),
+		];
+
+		if ( $this->get_ai_app()->is_connected() ) {
+			// Use a cached version, don't call the API on every editor load.
+			$config['usage'] = $this->get_ai_app()->get_cached_usage();
+		}
+
 		wp_localize_script(
 			'elementor-ai',
 			'ElementorAiConfig',
-			[
-				'is_get_started' => User::get_introduction_meta( 'ai_get_started' ),
-				'connect_url' => $this->get_ai_connect_url(),
-				// Use a cached version, don't call the API on every editor load.
-				'usage' => $this->get_ai_app()->get_cached_usage(),
-			]
+			$config
 		);
 
 		wp_set_script_translations( 'elementor-ai', 'elementor' );
+
+		if ( $this->get_ai_app()->is_connected() && ! empty( $config['is_get_started'] ) ) {
+			$remote_config = Utils::get_cached_callback( [ $this->get_ai_app(), 'get_remote_config' ], 'ai_remote_config' );
+
+			if ( ! is_wp_error( $remote_config ) && ! empty( $remote_config['config']['remoteIntegrationUrl'] ) ) {
+				wp_enqueue_scripts(
+					'elementor-ai-integration',
+					$remote_config['config']['remoteIntegrationUrl'],
+					[
+						'elementor-editor',
+					],
+					ELEMENTOR_VERSION,
+					true
+				);
+			}
+
+			add_filter( 'script_loader_tag', function( $tag, $handle ) {
+				if ( 'elementor-ai-integration' === $handle ) {
+					return str_replace( ' src', ' type="module" src', $tag );
+				}
+				return $tag;
+			}, 10, 2 );
+		}
 	}
 
 	private function enqueue_layout_script() {
@@ -231,6 +261,16 @@ class Module extends BaseModule {
 			'is_get_started' => User::get_introduction_meta( 'ai_get_started' ),
 			'usage' => $user_usage,
 		];
+	}
+
+	public function ajax_ai_get_remote_config() {
+		$app = $this->get_ai_app();
+
+		if ( ! $app->is_connected() ) {
+			return [];
+		}
+
+		return $app->get_remote_config();
 	}
 
 	private function verify_permissions( $editor_post_id ) {
@@ -734,6 +774,7 @@ class Module extends BaseModule {
 
 		$elements = $result['text']['elements'] ?? [];
 		$base_template_id = $result['baseTemplateId'] ?? null;
+		$template_type = $result['templateType'] ?? null;
 
 		if ( empty( $elements ) || ! is_array( $elements ) ) {
 			throw new \Exception( 'unknown_error' );
@@ -770,6 +811,7 @@ class Module extends BaseModule {
 			'response_id' => $result['responseId'],
 			'usage' => $result['usage'],
 			'base_template_id' => $base_template_id,
+			'template_type' => $template_type,
 		];
 	}
 
